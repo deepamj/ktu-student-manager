@@ -1,8 +1,8 @@
 # 🎓 KTU Student Manager
 
-A command-line application built with **Python** and **MongoDB** to manage KTU (APJ Abdul Kalam Technological University) student academic records and activity points.
+A command-line application built with **Python** and **MongoDB** to manage KTU student academic records and activity points.
 
-Micro Project for DBMS(KTU S4 CSE, 2024 Scheme).
+Micro Project for DBMS(KTU S4 CSE).
 
 ---
 
@@ -20,8 +20,8 @@ Micro Project for DBMS(KTU S4 CSE, 2024 Scheme).
 
 | Layer      | Technology        |
 |------------|-------------------|
-| Language   | Python 3.x        |
-| Database   | MongoDB 8.x       |
+| Language   | Python 3.13       |
+| Database   | MongoDB 8.2       |
 | Driver     | PyMongo           |
 | CLI Tables | Tabulate          |
 | Config     | python-dotenv     |
@@ -97,7 +97,7 @@ ktu-student-manager/
 ## ⚙️ Setup & Installation
 
 ### Prerequisites
-- Python 3.x
+- Python 3.13
 - MongoDB Community Server
 - Git
 
@@ -163,7 +163,7 @@ python main.py
 ## 📷 Sample Output
 ```
 ╔══════════════════════════════╗
-║   KTU STUDENT MANAGER 🎓    ║
+║   KTU STUDENT MANAGER        ║
 ╠══════════════════════════════╣
 ║  1. Student Management       ║
 ║  2. Grades Management        ║

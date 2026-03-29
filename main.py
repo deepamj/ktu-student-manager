@@ -109,7 +109,7 @@ def main():
     while True:
         print("""
 ╔══════════════════════════════╗
-║   KTU STUDENT MANAGER 🎓    ║
+║   KTU STUDENT MANAGER        ║
 ╠══════════════════════════════╣
 ║  1. Student Management       ║
 ║  2. Grades Management        ║
