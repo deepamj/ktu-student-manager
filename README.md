@@ -53,7 +53,7 @@ ktu-student-manager/
 ```json
 {
   "_id": "ObjectId",
-  "name": "Deepam J",
+  "name": "Deepa MJ",
   "roll_no": "TVE24CS008",
   "semester": 4,
   "branch": "CSE",
