@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>KTU Student Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #111118;
+  --surface2: #1a1a24;
+  --border: #2a2a3a;
+  --accent: #6c63ff;
+  --accent2: #ff6584;
+  --accent3: #43e97b;
+  --text: #e8e8f0;
+  --muted: #6b6b80;
+  --danger: #ff4757;
+  --warn: #ffa502;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;}
+
+/* Noise overlay */
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:0;opacity:0.4;}
+
+/* Glow blobs */
+.blob{position:fixed;border-radius:50%;filter:blur(120px);pointer-events:none;z-index:0;}
+.blob1{width:500px;height:500px;background:rgba(108,99,255,0.12);top:-100px;left:-100px;}
+.blob2{width:400px;height:400px;background:rgba(255,101,132,0.08);bottom:-50px;right:-50px;}
+
+/* Layout */
+.app{display:flex;min-height:100vh;position:relative;z-index:1;}
+
+/* Sidebar */
+.sidebar{width:240px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;}
+.logo{padding:28px 24px 20px;border-bottom:1px solid var(--border);}
+.logo h1{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;letter-spacing:-0.02em;line-height:1.2;}
+.logo h1 span{color:var(--accent);}
+.logo p{font-size:0.7rem;color:var(--muted);margin-top:4px;font-weight:300;}
+.nav{padding:16px 12px;flex:1;}
+.nav-section{margin-bottom:24px;}
+.nav-label{font-size:0.65rem;font-weight:600;letter-spacing:0.12em;color:var(--muted);padding:0 12px;margin-bottom:8px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:400;color:var(--muted);transition:all 0.15s;margin-bottom:2px;border:1px solid transparent;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--text);background:var(--surface2);border-color:var(--border);}
+.nav-item .icon{width:18px;height:18px;opacity:0.7;flex-shrink:0;}
+.nav-item.active .icon{opacity:1;}
+.sidebar-footer{padding:16px;border-top:1px solid var(--border);}
+.db-status{display:flex;align-items:center;gap:8px;font-size:0.72rem;color:var(--muted);}
+.db-dot{width:7px;height:7px;border-radius:50%;background:var(--accent3);box-shadow:0 0 6px var(--accent3);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
+
+/* Main */
+.main{margin-left:240px;flex:1;padding:36px 40px;min-height:100vh;}
+
+/* Page header */
+.page-header{margin-bottom:32px;}
+.page-header h2{font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;letter-spacing:-0.03em;}
+.page-header p{color:var(--muted);font-size:0.88rem;margin-top:4px;font-weight:300;}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.card-title{font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:700;}
+
+/* Stats grid */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden;}
+.stat-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent-color,var(--accent));}
+.stat-card h3{font-size:2rem;font-weight:700;font-family:'Syne',sans-serif;letter-spacing:-0.04em;}
+.stat-card p{font-size:0.75rem;color:var(--muted);margin-top:4px;}
+
+/* Table */
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:0.83rem;}
+thead th{text-align:left;padding:10px 14px;font-size:0.7rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);}
+tbody tr{border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.1s;}
+tbody tr:hover{background:var(--surface2);}
+tbody td{padding:12px 14px;color:var(--text);}
+
+/* Badges */
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.7rem;font-weight:600;}
+.badge-blue{background:rgba(108,99,255,0.15);color:#a89cff;}
+.badge-green{background:rgba(67,233,123,0.15);color:#43e97b;}
+.badge-red{background:rgba(255,71,87,0.15);color:#ff6b6b;}
+.badge-orange{background:rgba(255,165,2,0.15);color:#ffa502;}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:8px;font-size:0.82rem;font-weight:500;cursor:pointer;border:none;transition:all 0.15s;font-family:'DM Sans',sans-serif;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{background:#7c75ff;transform:translateY(-1px);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);border-color:var(--accent);background:rgba(108,99,255,0.08);}
+.btn-danger{background:rgba(255,71,87,0.15);color:var(--danger);border:1px solid rgba(255,71,87,0.2);}
+.btn-danger:hover{background:rgba(255,71,87,0.25);}
+.btn-sm{padding:5px 12px;font-size:0.75rem;}
+.btn-icon{padding:6px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all 0.15s;}
+.btn-icon:hover{color:var(--text);border-color:var(--accent);}
+
+/* Forms */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.form-group{display:flex;flex-direction:column;gap:6px;}
+.form-group.full{grid-column:1/-1;}
+label{font-size:0.75rem;font-weight:500;color:var(--muted);letter-spacing:0.04em;}
+input,select,textarea{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:0.83rem;font-family:'DM Sans',sans-serif;transition:border-color 0.15s;outline:none;width:100%;}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+select option{background:var(--surface2);}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;}
+.modal-header{padding:24px 24px 0;display:flex;align-items:center;justify-content:space-between;}
+.modal-header h3{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;}
+.modal-body{padding:24px;}
+.modal-footer{padding:0 24px 24px;display:flex;gap:10px;justify-content:flex-end;}
+.close-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.2rem;padding:4px;}
+.close-btn:hover{color:var(--text);}
+
+/* Toast */
+.toast-container{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;}
+.toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 18px;font-size:0.82rem;display:flex;align-items:center;gap:10px;animation:slideIn 0.3s ease;min-width:260px;}
+.toast.success{border-left:3px solid var(--accent3);}
+.toast.error{border-left:3px solid var(--danger);}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0;}to{transform:translateX(0);opacity:1;}}
+
+/* Progress bar */
+.progress-wrap{background:var(--surface2);border-radius:4px;height:6px;overflow:hidden;margin-top:6px;}
+.progress-bar{height:100%;border-radius:4px;transition:width 0.6s ease;}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;background:var(--surface2);border-radius:10px;padding:4px;margin-bottom:20px;}
+.tab{padding:7px 16px;border-radius:7px;font-size:0.8rem;font-weight:500;cursor:pointer;color:var(--muted);transition:all 0.15s;border:none;background:none;font-family:'DM Sans',sans-serif;}
+.tab.active{background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,0.3);}
+
+/* Subject row */
+.subject-row{display:grid;grid-template-columns:1fr 2fr 80px 100px 36px;gap:10px;align-items:center;margin-bottom:8px;}
+.subject-row input,
+.subject-row select{margin:0;}
+
+/* Eligibility meter */
+.eligibility-card{background:var(--surface2);border-radius:12px;padding:16px;margin-bottom:12px;}
+.elig-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:0.82rem;}
+.elig-label{color:var(--muted);}
+.elig-pts{font-weight:600;font-family:'Syne',sans-serif;}
+
+/* Empty state */
+.empty{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty svg{opacity:0.3;margin-bottom:12px;}
+.empty p{font-size:0.85rem;}
+
+/* Page */
+.page{display:none;}
+.page.active{display:block;}
+
+/* Animations */
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+.page.active .card,.page.active .stats-grid,.page.active .page-header{animation:fadeUp 0.3s ease both;}
+.page.active .stats-grid{animation-delay:0.05s;}
+.page.active .card:nth-child(2){animation-delay:0.1s;}
+</style>
+</head>
+<body>
+<div class="blob blob1"></div>
+<div class="blob blob2"></div>
+
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <h1>KTU <span>Student</span><br>Manager</h1>
+      <p>S4 CSE · DBMS Micro Project</p>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">
+        <div class="nav-label">Overview</div>
+        <div class="nav-item active" onclick="showPage('dashboard')">
+          <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+          Dashboard
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Manage</div>
+        <div class="nav-item" onclick="showPage('students')">
+          <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Students
+        </div>
+        <div class="nav-item" onclick="showPage('grades')">
+          <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Grades
+        </div>
+        <div class="nav-item" onclick="showPage('activity')">
+          <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+          Activity Points
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Insights</div>
+        <div class="nav-item" onclick="showPage('reports')">
+          <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          Reports
+        </div>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="db-status">
+        <div class="db-dot"></div>
+        MongoDB Connected
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- Dashboard -->
+    <div id="page-dashboard" class="page active">
+      <div class="page-header">
+        <h2>Dashboard</h2>
+        <p>Overview of all student records</p>
+      </div>
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card" style="--accent-color:var(--accent)"><h3 id="stat-students">—</h3><p>Total Students</p></div>
+        <div class="stat-card" style="--accent-color:var(--accent2)"><h3 id="stat-avg-cgpa">—</h3><p>Average CGPA</p></div>
+        <div class="stat-card" style="--accent-color:var(--accent3)"><h3 id="stat-eligible">—</h3><p>Activity Eligible</p></div>
+        <div class="stat-card" style="--accent-color:var(--warn)"><h3 id="stat-branches">—</h3><p>Branches</p></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">All Students</span>
+          <button class="btn btn-primary btn-sm" onclick="showPage('students')">Manage Students</button>
+        </div>
+        <div class="table-wrap" id="dashboard-table">
+          <div class="empty"><p>Loading...</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Students -->
+    <div id="page-students" class="page">
+      <div class="page-header">
+        <h2>Students</h2>
+        <p>Add, edit and manage student profiles</p>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Student List</span>
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-student')">+ Add Student</button>
+        </div>
+        <div class="table-wrap" id="students-table"></div>
+      </div>
+    </div>
+
+    <!-- Grades -->
+    <div id="page-grades" class="page">
+      <div class="page-header">
+        <h2>Grades</h2>
+        <p>Manage semester grades and view CGPA</p>
+      </div>
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header"><span class="card-title">Select Student</span></div>
+        <div class="form-grid" style="grid-template-columns:1fr auto;">
+          <select id="grades-student-select" onchange="loadGrades()"><option value="">— Choose a student —</option></select>
+        </div>
+      </div>
+      <div id="grades-content"></div>
+    </div>
+
+    <!-- Activity Points -->
+    <div id="page-activity" class="page">
+      <div class="page-header">
+        <h2>Activity Points</h2>
+        <p>Track KTU activity points across all 3 groups</p>
+      </div>
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header"><span class="card-title">Select Student</span></div>
+        <select id="activity-student-select" onchange="loadActivity()"><option value="">— Choose a student —</option></select>
+      </div>
+      <div id="activity-content"></div>
+    </div>
+
+    <!-- Reports -->
+    <div id="page-reports" class="page">
+      <div class="page-header">
+        <h2>Reports</h2>
+        <p>Analytics and summaries</p>
+      </div>
+      <div class="tabs">
+        <button class="tab active" onclick="showReport('top-students',this)">Top by CGPA</button>
+        <button class="tab" onclick="showReport('eligibility',this)">Activity Eligibility</button>
+        <button class="tab" onclick="showReport('branch',this)">Branch Summary</button>
+      </div>
+      <div id="report-content"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Modals -->
+<div id="modal-add-student" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Add New Student</h3>
+      <button class="close-btn" onclick="closeModal('modal-add-student')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>FULL NAME</label><input id="s-name" placeholder="e.g. Deepam J"/></div>
+        <div class="form-group"><label>ROLL NUMBER</label><input id="s-roll" placeholder="e.g. TVE24CS001"/></div>
+        <div class="form-group"><label>SEMESTER</label><select id="s-sem"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></div>
+        <div class="form-group"><label>BRANCH</label><input id="s-branch" placeholder="e.g. CSE"/></div>
+        <div class="form-group full"><label>STUDENT TYPE</label><select id="s-type"><option value="regular">Regular</option><option value="lateral">Lateral Entry</option><option value="pwd">PwD</option></select></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-student')">Cancel</button>
+      <button class="btn btn-primary" onclick="addStudent()">Add Student</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-add-grades" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Add Semester Grades</h3>
+      <button class="close-btn" onclick="closeModal('modal-add-grades')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid" style="margin-bottom:16px;">
+        <div class="form-group"><label>SEMESTER</label><input id="g-sem" type="number" min="1" max="8" placeholder="e.g. 4"/></div>
+      </div>
+      <div style="font-size:0.75rem;color:var(--muted);margin-bottom:10px;display:grid;grid-template-columns:1fr 2fr 80px 100px 36px;gap:10px;padding:0 2px;">
+        <span>CODE</span><span>SUBJECT NAME</span><span>CREDITS</span><span>GRADE</span><span></span>
+      </div>
+      <div id="subjects-list">
+        <div class="subject-row">
+          <input placeholder="CST202"/>
+          <input placeholder="DBMS"/>
+          <input type="number" placeholder="4" min="1" max="6"/>
+          <select><option>S</option><option>A+</option><option>A</option><option>B+</option><option>B</option><option>C+</option><option>C</option><option>D</option><option>P</option><option>F</option></select>
+          <button class="btn-icon" onclick="removeSubjectRow(this)">✕</button>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="addSubjectRow()">+ Add Subject</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-grades')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitGrades()">Save Grades</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-add-activity" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Add Activity</h3>
+      <button class="close-btn" onclick="closeModal('modal-add-activity')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full"><label>GROUP</label>
+          <select id="act-group" onchange="updateActivityItems()">
+            <option value="">— Select group —</option>
+            <option value="GROUP_I">Group I — Co-curricular</option>
+            <option value="GROUP_II">Group II — Professional Development</option>
+            <option value="GROUP_III">Group III — Advanced Achievements</option>
+          </select>
+        </div>
+        <div class="form-group full"><label>ACTIVITY</label>
+          <select id="act-item" onchange="updateMaxPoints()"><option>— Select group first —</option></select>
+        </div>
+        <div class="form-group"><label>POINTS AWARDED</label><input id="act-points" type="number" min="1" placeholder="e.g. 10"/></div>
+        <div class="form-group"><label>NOTE (optional)</label><input id="act-note" placeholder="e.g. University level"/></div>
+      </div>
+      <div id="act-max-hint" style="font-size:0.75rem;color:var(--muted);margin-top:8px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-activity')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitActivity()">Add Activity</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<script>
+const API = '';
+let allStudents = [];
+let activityMeta = {};
+let currentGradeStudentId = null;
+let currentActivityStudentId = null;
+
+// ── Utils ────────────────────────────────────────────────────────────────────
+function toast(msg, type='success') {
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span>${type==='success'?'✓':'✕'}</span> ${msg}`;
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(()=>t.remove(), 3500);
+}
+
+async function api(url, opts={}) {
+  const res = await fetch(API+url, {headers:{'Content-Type':'application/json'}, ...opts});
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ── Navigation ───────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  event?.currentTarget?.classList.add('active');
+  if (name==='dashboard') loadDashboard();
+  if (name==='students') loadStudents();
+  if (name==='grades') populateStudentSelects();
+  if (name==='activity') { populateStudentSelects(); loadActivityMeta(); }
+  if (name==='reports') showReport('top-students', document.querySelector('.tab'));
+}
+
+// ── Dashboard ────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  const [students, topStudents, elig, branch] = await Promise.all([
+    api('/api/students'), api('/api/reports/top-students'),
+    api('/api/reports/eligibility'), api('/api/reports/branch-summary')
+  ]);
+  allStudents = students;
+  document.getElementById('stat-students').textContent = students.length;
+  const avgCgpa = topStudents.length ? (topStudents.reduce((a,s)=>a+s.cgpa,0)/topStudents.length).toFixed(2) : '—';
+  document.getElementById('stat-avg-cgpa').textContent = avgCgpa;
+  document.getElementById('stat-eligible').textContent = elig.filter(s=>s.eligible).length;
+  document.getElementById('stat-branches').textContent = branch.length;
+
+  if (!students.length) {
+    document.getElementById('dashboard-table').innerHTML = `<div class="empty"><p>No students yet. Go to Students to add one.</p></div>`;
+    return;
+  }
+  const cgpaMap = {};
+  topStudents.forEach(s=>cgpaMap[s.roll_no]=s.cgpa);
+  const eligMap = {};
+  elig.forEach(s=>eligMap[s.roll_no]=s.eligible);
+
+  document.getElementById('dashboard-table').innerHTML = `
+    <table><thead><tr><th>Name</th><th>Roll No</th><th>Branch</th><th>Semester</th><th>Type</th><th>CGPA</th><th>Activity</th></tr></thead>
+    <tbody>${students.map(s=>`
+      <tr>
+        <td><strong>${s.name}</strong></td>
+        <td><span class="badge badge-blue">${s.roll_no}</span></td>
+        <td>${s.branch}</td>
+        <td>S${s.semester}</td>
+        <td>${s.type}</td>
+        <td>${cgpaMap[s.roll_no]??'—'}</td>
+        <td>${eligMap[s.roll_no]?'<span class="badge badge-green">Eligible</span>':'<span class="badge badge-orange">Pending</span>'}</td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+// ── Students ─────────────────────────────────────────────────────────────────
+async function loadStudents() {
+  allStudents = await api('/api/students');
+  populateStudentSelects();
+  if (!allStudents.length) {
+    document.getElementById('students-table').innerHTML = `<div class="empty"><p>No students yet.</p></div>`;
+    return;
+  }
+  document.getElementById('students-table').innerHTML = `
+    <table><thead><tr><th>Name</th><th>Roll No</th><th>Branch</th><th>Semester</th><th>Type</th><th>Actions</th></tr></thead>
+    <tbody>${allStudents.map(s=>`
+      <tr>
+        <td><strong>${s.name}</strong></td>
+        <td><span class="badge badge-blue">${s.roll_no}</span></td>
+        <td>${s.branch}</td>
+        <td>S${s.semester}</td>
+        <td><span class="badge badge-blue">${s.type}</span></td>
+        <td style="display:flex;gap:6px;">
+          <button class="btn-icon" title="Delete" onclick="deleteStudent('${s._id.$oid}','${s.name}')">🗑</button>
+        </td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+async function addStudent() {
+  const name=document.getElementById('s-name').value.trim();
+  const roll=document.getElementById('s-roll').value.trim().toUpperCase();
+  const sem=+document.getElementById('s-sem').value;
+  const branch=document.getElementById('s-branch').value.trim().toUpperCase();
+  const type=document.getElementById('s-type').value;
+  if (!name||!roll||!branch) return toast('Please fill all fields','error');
+  try {
+    await api('/api/students',{method:'POST',body:JSON.stringify({name,roll_no:roll,semester:sem,branch,type})});
+    toast(`Student ${name} added!`);
+    closeModal('modal-add-student');
+    loadStudents();
+    ['s-name','s-roll','s-branch'].forEach(id=>document.getElementById(id).value='');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function deleteStudent(id, name) {
+  if (!confirm(`Delete ${name} and all their data?`)) return;
+  await api(`/api/students/${id}`,{method:'DELETE'});
+  toast(`${name} deleted`);
+  loadStudents();
+}
+
+function populateStudentSelects() {
+  ['grades-student-select','activity-student-select'].forEach(sid=>{
+    const sel = document.getElementById(sid);
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">— Choose a student —</option>' +
+      allStudents.map(s=>`<option value="${s._id.$oid}">${s.name} (${s.roll_no})</option>`).join('');
+    if (prev) sel.value = prev;
+  });
+}
+
+// ── Grades ───────────────────────────────────────────────────────────────────
+async function loadGrades() {
+  const id = document.getElementById('grades-student-select').value;
+  if (!id) return;
+  currentGradeStudentId = id;
+  const data = await api(`/api/grades/${id}`);
+  const el = document.getElementById('grades-content');
+
+  if (!data.records.length) {
+    el.innerHTML = `<div class="card">
+      <div class="card-header"><span class="card-title">No grades yet</span>
+        <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-grades')">+ Add Grades</button>
+      </div>
+      <div class="empty"><p>No semester grades recorded for this student.</p></div>
+    </div>`;
+    return;
+  }
+
+  const gradePoints = {S:10,'A+':9,A:8.5,'B+':8,B:7.5,'C+':7,C:6.5,D:6,P:5.5,F:0};
+  let html = `<div class="card" style="margin-bottom:16px;">
+    <div class="card-header">
+      <span class="card-title">CGPA: <span style="color:var(--accent);font-family:'Syne',sans-serif;">${data.cgpa}</span></span>
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-grades')">+ Add Semester</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:10px;">
+      ${data.records.map(r=>`
+        <div style="background:var(--surface2);border-radius:10px;padding:12px;text-align:center;">
+          <div style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:var(--accent);">${r.sgpa}</div>
+          <div style="font-size:0.7rem;color:var(--muted);">Sem ${r.semester}</div>
+        </div>`).join('')}
+    </div>
+  </div>`;
+
+  data.records.forEach(r=>{
+    html += `<div class="card" style="margin-bottom:16px;">
+      <div class="card-header"><span class="card-title">Semester ${r.semester}</span>
+        <span style="font-size:0.8rem;color:var(--muted);">SGPA: <strong style="color:var(--text);">${r.sgpa}</strong></span>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Code</th><th>Subject</th><th>Credits</th><th>Grade</th><th>Points</th></tr></thead>
+      <tbody>${r.subjects.map(s=>`
+        <tr><td>${s.code}</td><td>${s.name}</td><td>${s.credits}</td>
+        <td><span class="badge ${s.grade==='F'?'badge-red':s.grade==='S'||s.grade==='A+'?'badge-green':'badge-blue'}">${s.grade}</span></td>
+        <td>${gradePoints[s.grade]??0}</td></tr>`).join('')}
+      </tbody></table></div>
+    </div>`;
+  });
+  el.innerHTML = html;
+}
+
+function addSubjectRow() {
+  const row = document.createElement('div');
+  row.className = 'subject-row';
+  row.innerHTML = `
+    <input placeholder="Code"/>
+    <input placeholder="Subject Name"/>
+    <input type="number" placeholder="Credits" min="1" max="6"/>
+    <select><option>S</option><option>A+</option><option>A</option><option>B+</option><option>B</option><option>C+</option><option>C</option><option>D</option><option>P</option><option>F</option></select>
+    <button class="btn-icon" onclick="removeSubjectRow(this)">✕</button>`;
+  document.getElementById('subjects-list').appendChild(row);
+}
+
+function removeSubjectRow(btn) {
+  const rows = document.querySelectorAll('#subjects-list .subject-row');
+  if (rows.length > 1) btn.closest('.subject-row').remove();
+}
+
+async function submitGrades() {
+  const sem = +document.getElementById('g-sem').value;
+  if (!sem) return toast('Enter a semester number','error');
+  const rows = document.querySelectorAll('#subjects-list .subject-row');
+  const subjects = [];
+  for (const row of rows) {
+    const inputs = row.querySelectorAll('input');
+    const sel = row.querySelector('select');
+    if (!inputs[0].value || !inputs[1].value || !inputs[2].value) return toast('Fill all subject fields','error');
+    subjects.push({code:inputs[0].value.trim().toUpperCase(), name:inputs[1].value.trim(), credits:+inputs[2].value, grade:sel.value});
+  }
+  try {
+    const res = await api('/api/grades',{method:'POST',body:JSON.stringify({student_id:currentGradeStudentId,semester:sem,subjects})});
+    toast(`Semester ${sem} saved! SGPA: ${res.sgpa}`);
+    closeModal('modal-add-grades');
+    loadGrades();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+// ── Activity Points ──────────────────────────────────────────────────────────
+async function loadActivityMeta() {
+  activityMeta = await api('/api/activities');
+}
+
+async function loadActivity() {
+  const id = document.getElementById('activity-student-select').value;
+  if (!id) return;
+  currentActivityStudentId = id;
+  const data = await api(`/api/activities/${id}`);
+  const el = document.getElementById('activity-content');
+
+  const groups = ['GROUP_I','GROUP_II','GROUP_III'];
+  const labels = {'GROUP_I':'Co-curricular','GROUP_II':'Professional Dev','GROUP_III':'Advanced'};
+  const totals = data.group_totals || {};
+  const total = data.total_points || 0;
+  const eligible = data.is_eligible || false;
+
+  let html = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Eligibility Status</span>
+        <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-activity')">+ Add Activity</button>
+      </div>
+      <div style="margin-bottom:16px;padding:16px;background:${eligible?'rgba(67,233,123,0.08)':'rgba(255,71,87,0.08)'};border-radius:10px;border:1px solid ${eligible?'rgba(67,233,123,0.2)':'rgba(255,71,87,0.2)'};text-align:center;">
+        <div style="font-size:1.8rem;margin-bottom:4px;">${eligible?'🎉':'⏳'}</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;color:${eligible?'var(--accent3)':'var(--danger)'};">${eligible?'ELIGIBLE':'NOT YET ELIGIBLE'}</div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:4px;">${total} / 120 total points</div>
+      </div>
+      ${groups.map(g=>{
+        const pts = totals[g]||0;
+        const pct = Math.min(100,(pts/40)*100);
+        const ok = pts>=40;
+        return `<div class="eligibility-card">
+          <div class="elig-row">
+            <span class="elig-label">${labels[g]}</span>
+            <span class="elig-pts" style="color:${ok?'var(--accent3)':'var(--text)'}">${pts} <span style="color:var(--muted);font-size:0.75rem;font-weight:400;">/ 40</span></span>
+          </div>
+          <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%;background:${ok?'var(--accent3)':'var(--accent)'}"></div></div>
+        </div>`;
+      }).join('')}
+      <div class="eligibility-card" style="margin-bottom:0;">
+        <div class="elig-row">
+          <span class="elig-label">Total</span>
+          <span class="elig-pts">${total} / 120</span>
+        </div>
+        <div class="progress-wrap"><div class="progress-bar" style="width:${Math.min(100,(total/120)*100)}%;background:var(--accent2)"></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Points Breakdown</span></div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${groups.map(g=>{
+          const pts = totals[g]||0;
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface2);border-radius:8px;">
+            <span style="font-size:0.82rem;">${g.replace('_',' ')}</span>
+            <span style="font-family:'Syne',sans-serif;font-weight:700;">${pts}<span style="color:var(--muted);font-size:0.7rem;font-weight:400;"> pts</span></span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  </div>`;
+
+  if (data.activities && data.activities.length) {
+    html += `<div class="card">
+      <div class="card-header"><span class="card-title">Activity Log</span></div>
+      <div class="table-wrap"><table><thead><tr><th>Group</th><th>Code</th><th>Activity</th><th>Points</th><th>Note</th><th></th></tr></thead>
+      <tbody>${data.activities.map((a,i)=>`
+        <tr>
+          <td><span class="badge badge-blue">${a.group.replace('GROUP_','G')}</span></td>
+          <td>${a.activity_code}</td>
+          <td>${a.description}</td>
+          <td><strong>${a.points_awarded}</strong></td>
+          <td style="color:var(--muted);font-size:0.78rem;">${a.note||'—'}</td>
+          <td><button class="btn-icon" onclick="deleteActivity(${i})">🗑</button></td>
+        </tr>`).join('')}
+      </tbody></table></div>
+    </div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+async function loadActivityMeta() {
+  activityMeta = await api('/api/activities');
+}
+
+function updateActivityItems() {
+  const group = document.getElementById('act-group').value;
+  const sel = document.getElementById('act-item');
+  if (!group || !activityMeta[group]) {
+    sel.innerHTML = '<option>— Select group first —</option>';
+    return;
+  }
+  sel.innerHTML = activityMeta[group].items.map(item=>
+    `<option value="${item.code}|${item.desc}|${item.max}">${item.code} — ${item.desc} (max ${item.max}pts)</option>`
+  ).join('');
+  updateMaxPoints();
+}
+
+function updateMaxPoints() {
+  const val = document.getElementById('act-item').value;
+  if (!val || !val.includes('|')) return;
+  const max = val.split('|')[2];
+  document.getElementById('act-max-hint').textContent = `Maximum points for this activity: ${max}`;
+  document.getElementById('act-points').max = max;
+}
+
+async function submitActivity() {
+  const group = document.getElementById('act-group').value;
+  const itemVal = document.getElementById('act-item').value;
+  const points = +document.getElementById('act-points').value;
+  const note = document.getElementById('act-note').value.trim();
+  if (!group || !itemVal.includes('|') || !points) return toast('Fill all fields','error');
+  const [code, desc, max] = itemVal.split('|');
+  if (points < 1 || points > +max) return toast(`Points must be between 1 and ${max}`,'error');
+  try {
+    await api(`/api/activities/${currentActivityStudentId}`,{method:'POST',body:JSON.stringify({group,code,description:desc,points,note})});
+    toast('Activity added!');
+    closeModal('modal-add-activity');
+    loadActivity();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function deleteActivity(index) {
+  if (!confirm('Remove this activity?')) return;
+  await api(`/api/activities/${currentActivityStudentId}/${index}`,{method:'DELETE'});
+  toast('Activity removed');
+  loadActivity();
+}
+
+// ── Reports ──────────────────────────────────────────────────────────────────
+async function showReport(type, btn) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  const el = document.getElementById('report-content');
+  el.innerHTML = `<div class="card"><div class="empty"><p>Loading...</p></div></div>`;
+
+  if (type==='top-students') {
+    const data = await api('/api/reports/top-students');
+    el.innerHTML = `<div class="card"><div class="card-header"><span class="card-title">Top Students by CGPA</span></div>
+      <div class="table-wrap"><table><thead><tr><th>Rank</th><th>Name</th><th>Roll No</th><th>Branch</th><th>CGPA</th></tr></thead>
+      <tbody>${data.map((s,i)=>`<tr>
+        <td><strong style="color:${i===0?'#ffd700':i===1?'#c0c0c0':i===2?'#cd7f32':'var(--muted)'}">#${i+1}</strong></td>
+        <td>${s.name}</td><td><span class="badge badge-blue">${s.roll_no}</span></td><td>${s.branch}</td>
+        <td><strong style="color:var(--accent);font-family:'Syne',sans-serif;">${s.cgpa}</strong></td>
+      </tr>`).join('')}</tbody></table></div></div>`;
+  }
+
+  if (type==='eligibility') {
+    const data = await api('/api/reports/eligibility');
+    el.innerHTML = `<div class="card"><div class="card-header"><span class="card-title">Activity Points Eligibility</span></div>
+      <div class="table-wrap"><table><thead><tr><th>Name</th><th>Roll No</th><th>Group I</th><th>Group II</th><th>Group III</th><th>Total</th><th>Status</th></tr></thead>
+      <tbody>${data.map(s=>`<tr>
+        <td>${s.name}</td><td><span class="badge badge-blue">${s.roll_no}</span></td>
+        <td><span class="badge ${s.g1>=40?'badge-green':'badge-orange'}">${s.g1}</span></td>
+        <td><span class="badge ${s.g2>=40?'badge-green':'badge-orange'}">${s.g2}</span></td>
+        <td><span class="badge ${s.g3>=40?'badge-green':'badge-orange'}">${s.g3}</span></td>
+        <td><strong>${s.total}</strong> / 120</td>
+        <td>${s.eligible?'<span class="badge badge-green">✓ Eligible</span>':'<span class="badge badge-red">✗ Pending</span>'}</td>
+      </tr>`).join('')}</tbody></table></div></div>`;
+  }
+
+  if (type==='branch') {
+    const data = await api('/api/reports/branch-summary');
+    el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;">
+      ${data.map(b=>`<div class="card">
+        <div class="card-header">
+          <span class="card-title">${b.branch}</span>
+          <span class="badge badge-blue">${b.count} students</span>
+        </div>
+        <div style="font-size:0.82rem;color:var(--muted);margin-bottom:12px;">Avg CGPA: <strong style="color:var(--text);">${b.avg_cgpa||'N/A'}</strong></div>
+        ${b.students.map(name=>`<div style="padding:6px 10px;background:var(--surface2);border-radius:6px;font-size:0.8rem;margin-bottom:4px;">${name}</div>`).join('')}
+      </div>`).join('')}
+    </div>`;
+  }
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async ()=>{
+  allStudents = await api('/api/students');
+  loadDashboard();
+  loadActivityMeta();
+});
+</script>
+</body>
+</html>
